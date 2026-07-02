@@ -8,22 +8,31 @@ export interface Sink {
   outName: string;
 }
 
-type DirectoryPicker = () => Promise<FileSystemDirectoryHandle>;
+type PickerWindow = Window & { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> };
 
-function getDirectoryPicker(): DirectoryPicker | null {
-  const picker = (window as unknown as { showDirectoryPicker?: DirectoryPicker }).showDirectoryPicker;
-  return typeof picker === 'function' ? picker : null;
+export type DirAvailability = 'ok' | 'file-protocol' | 'unsupported';
+
+export type DirResult =
+  | { kind: 'chosen'; handle: FileSystemDirectoryHandle }
+  | { kind: 'cancelled' }
+  | { kind: 'unavailable'; why: Exclude<DirAvailability, 'ok'> };
+
+/** Why folder-saving can't work here, or 'ok'. Never silent: callers surface this to the user. */
+export function dirPickerAvailability(): DirAvailability {
+  if (location.protocol === 'file:') return 'file-protocol';
+  return typeof (window as PickerWindow).showDirectoryPicker === 'function' ? 'ok' : 'unsupported';
 }
 
-export async function chooseDirectory(): Promise<FileSystemDirectoryHandle | null> {
-  if (location.protocol === 'file:') return null;
-  const picker = getDirectoryPicker();
-  if (!picker) return null;
+export async function chooseDirectory(): Promise<DirResult> {
+  const availability = dirPickerAvailability();
+  if (availability !== 'ok') return { kind: 'unavailable', why: availability };
   try {
-    return await picker();
+    const handle = await (window as PickerWindow).showDirectoryPicker!();
+    return { kind: 'chosen', handle };
   } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') return null; // user canceled quietly
-    return null;
+    if (err instanceof DOMException && err.name === 'AbortError') return { kind: 'cancelled' };
+    // SecurityError (embedded/iframe/policy) and anything else: folder saving won't work here.
+    return { kind: 'unavailable', why: 'unsupported' };
   }
 }
 

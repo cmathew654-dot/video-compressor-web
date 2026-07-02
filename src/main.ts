@@ -2,7 +2,12 @@ import { initUi, demoItems } from './ui';
 import type { UiCallbacks, UiHandles } from './types';
 import { QUALITY_LABELS, DEFAULT_QUALITY, loadCorrections, type Quality } from './estimator';
 import { Queue, LARGE_FILE_BYTES } from './queue';
-import { chooseDirectory } from './save';
+import { chooseDirectory, dirPickerAvailability, type DirAvailability } from './save';
+
+const DIR_UNAVAILABLE_MESSAGE: Record<Exclude<DirAvailability, 'ok'>, string> = {
+  'file-protocol': 'Folder saving is unavailable for a local file — outputs will download instead.',
+  unsupported: "This browser can't save to a folder — outputs will download instead.",
+};
 
 const QUALITY_ORDER: Quality[] = ['max', 'visually_lossless', 'balanced', 'smaller', 'extra_small'];
 const presets = QUALITY_ORDER.map((value) => ({ value, label: QUALITY_LABELS[value] }));
@@ -40,8 +45,15 @@ if (app) {
     const queue = new Queue(DEFAULT_QUALITY, loadCorrections(), rerender);
 
     async function onChooseDir(): Promise<void> {
-      chosenDir = await chooseDirectory();
-      handles.setDirLabel(chosenDir?.name ?? null);
+      const result = await chooseDirectory();
+      if (result.kind === 'chosen') {
+        chosenDir = result.handle;
+        handles.setDirLabel(result.handle.name);
+      } else if (result.kind === 'unavailable') {
+        handles.setDirLabel(DIR_UNAVAILABLE_MESSAGE[result.why]);
+        handles.setChooseDirEnabled(false);
+      }
+      // cancelled: user closed the picker — keep whatever was set before.
     }
 
     async function onStart(): Promise<void> {
@@ -71,7 +83,14 @@ if (app) {
     };
 
     handles = initUi(app, presets, DEFAULT_QUALITY, callbacks);
-    handles.setDirLabel(null);
     handles.setStartEnabled(false);
+
+    const availability = dirPickerAvailability();
+    if (availability === 'ok') {
+      handles.setDirLabel(null);
+    } else {
+      handles.setDirLabel(DIR_UNAVAILABLE_MESSAGE[availability]);
+      handles.setChooseDirEnabled(false);
+    }
   }
 }

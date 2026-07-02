@@ -109,6 +109,38 @@ test.describe('video compressor e2e', () => {
     await expect(statusCell).not.toBeEmpty();
   });
 
+  test('save-to-folder button invokes the directory picker', async ({ page }) => {
+    // Spy: record the call, then behave like a user pressing Escape.
+    await page.addInitScript(() => {
+      (window as unknown as Record<string, unknown>).__pickerCalls = 0;
+      (window as unknown as Record<string, () => Promise<never>>).showDirectoryPicker = () => {
+        (window as unknown as { __pickerCalls: number }).__pickerCalls++;
+        return Promise.reject(new DOMException('user aborted', 'AbortError'));
+      };
+    });
+
+    await page.goto('/');
+    const btn = page.locator('#chooseDir');
+    await expect(btn).toBeEnabled();
+    await btn.click();
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __pickerCalls: number }).__pickerCalls))
+      .toBe(1);
+    // Cancelling must not disable the button or print an unavailable message.
+    await expect(btn).toBeEnabled();
+    await expect(page.locator('.vc-dir-label')).toHaveText('');
+  });
+
+  test('missing File System Access API disables folder saving with an explanation', async ({ page }) => {
+    await page.addInitScript(() => {
+      delete (window as unknown as Record<string, unknown>).showDirectoryPicker;
+    });
+
+    await page.goto('/');
+    await expect(page.locator('#chooseDir')).toBeDisabled();
+    await expect(page.locator('.vc-dir-label')).toContainText('outputs will download');
+  });
+
   test('demo mode renders light and dark theme screenshots', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'pages', 'demo screenshots are only required for the pages build');
 

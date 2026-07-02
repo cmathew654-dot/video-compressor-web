@@ -149,7 +149,7 @@ export function initUi(
   presetSelect.value = defaultPreset;
   presetSelect.addEventListener('change', () => cb.onPresetChanged(presetSelect.value));
 
-  const chooseDirBtn = el('button', { className: 'vc-btn', id: 'chooseDir', type: 'button', disabled: true }, ['Save to folder…']);
+  const chooseDirBtn = el('button', { className: 'vc-btn', id: 'chooseDir', type: 'button' }, ['Save to folder…']);
   chooseDirBtn.addEventListener('click', () => cb.onChooseDir());
 
   const dirLabel = el('span', { className: 'vc-dir-label' });
@@ -281,10 +281,13 @@ export function initUi(
 
   function setDirLabel(label: string | null): void {
     dirLabel.textContent = label || '';
-    chooseDirBtn.disabled = false;
   }
 
-  return { renderQueue, renderBatch, setStartEnabled, setDirLabel };
+  function setChooseDirEnabled(enabled: boolean): void {
+    chooseDirBtn.disabled = !enabled;
+  }
+
+  return { renderQueue, renderBatch, setStartEnabled, setDirLabel, setChooseDirEnabled };
 }
 
 export function demoItems(): QueueItem[] {

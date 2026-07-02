@@ -12,4 +12,5 @@ export interface UiHandles {
   renderBatch(pct: number|null, etaS: number|null, running: boolean): void;
   setStartEnabled(enabled: boolean): void;
   setDirLabel(label: string|null): void;
+  setChooseDirEnabled(enabled: boolean): void;
 }
