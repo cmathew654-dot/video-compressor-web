@@ -1,18 +1,3 @@
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/src/assets/montserrat-latin-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/src/assets/montserrat-latin-700.woff2') format('woff2');
-}
-
 :root {
   --bg: #EADDC6;
   --panel: #F6F0E3;
@@ -25,7 +10,7 @@
   --success: #3E6B34;
   --muted: #8A8172;
 
-  --font: 'Montserrat', Corbel, 'Segoe UI', system-ui, sans-serif;
+  --font: Corbel, 'Segoe UI', system-ui, sans-serif;
   --radius: 4px;
   --gap: 12px;
   --border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
