@@ -36,14 +36,15 @@ afterEach(() => {
 });
 
 describe('resolveFfmpeg', () => {
-  it('honors a valid FFMPEG_PATH before PATH', async () => {
+  it('honors a valid explicit path before a competing PATH candidate', async () => {
+    const { directory } = makePathWithFfmpeg();
     const { resolveFfmpeg } = await loadResolver();
 
     expect(
       resolveFfmpeg({
-        explicitPath: undefined,
-        env: { FFMPEG_PATH: process.execPath },
-        pathValue: '',
+        explicitPath: process.execPath,
+        env: {},
+        pathValue: directory,
       }),
     ).toBe(resolve(process.execPath));
   });
@@ -61,29 +62,38 @@ describe('resolveFfmpeg', () => {
     ).toBe(ffmpegPath);
   });
 
-  it('rejects a nonexistent FFMPEG_PATH instead of falling back to PATH', async () => {
+  it('rejects a nonexistent explicit path instead of falling back to PATH', async () => {
     const { directory } = makePathWithFfmpeg();
     const { resolveFfmpeg } = await loadResolver();
 
     expect(() =>
       resolveFfmpeg({
-        explicitPath: undefined,
-        env: { FFMPEG_PATH: join(directory, 'missing-ffmpeg') },
+        explicitPath: join(directory, 'missing-ffmpeg'),
+        env: {},
         pathValue: directory,
       }),
-    ).toThrow(/FFMPEG_PATH/i);
+    ).toThrow(/explicit/i);
   });
 
   it('explains how to configure FFmpeg when neither FFMPEG_PATH nor PATH resolves it', async () => {
     const emptyPath = makeEmptyPath();
     const { resolveFfmpeg } = await loadResolver();
 
-    expect(() =>
+    let thrown;
+    try {
       resolveFfmpeg({
         explicitPath: undefined,
         env: {},
         pathValue: emptyPath,
-      }),
-    ).toThrow(/FFMPEG_PATH|PATH/i);
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    const message = thrown.message;
+    expect(message).toMatch(/FFMPEG_PATH/);
+    expect(message).toMatch(/PATH/);
+    expect(message).toMatch(/set|add|configure|install/i);
   });
 });
