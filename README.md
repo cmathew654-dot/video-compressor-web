@@ -6,7 +6,7 @@ Your files never leave your computer.
 
 ## Why trust it
 
-The production build ships with a `Content-Security-Policy` meta tag whose `connect-src` directive is set to `'none'`. That's not a promise, it's a browser-enforced restriction: with that policy in place, the page is physically incapable of making a network request (fetch, XHR, WebSocket, beacon, image ping — all of it). You don't have to take this README's word for it:
+The production build ships with a `Content-Security-Policy` meta tag whose `connect-src` directive is set to `'none'`. That directive blocks the browser APIs a page would use to reach a server on its own — fetch, XHR, WebSocket, EventSource, and `sendBeacon` — outright. There is no upload endpoint and no application backend for this app to talk to in the first place, so nothing on the page has a way to send your files anywhere or phone home. That's not a promise, it's a browser-enforced restriction. You don't have to take this README's word for it:
 
 - Open DevTools → Network while using the app. You'll see it stay empty during compression.
 - Try it in airplane mode. It still works, because it never needed a connection.

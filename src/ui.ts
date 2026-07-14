@@ -195,7 +195,7 @@ export function initUi(
     cspCode,
     el('p', {}, ['External network requests since load: ', netCount]),
     el('p', {}, [
-      'Your files never leave this computer. This page cannot make network requests — the browser enforces it (DevTools → Network to verify). Works in airplane mode.',
+      'Your files never leave this computer. This page makes no outbound upload or application-connection requests, and its CSP blocks fetch, XHR, WebSocket, EventSource, and sendBeacon outright (DevTools → Network to verify). Works in airplane mode.',
     ]),
     el('p', {}, ['Every line of this page is readable — View Source.']),
   ]);
