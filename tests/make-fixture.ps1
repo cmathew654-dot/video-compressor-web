@@ -1,49 +1,45 @@
 <#
 .SYNOPSIS
-    Generates tests/fixtures/fixture.mp4 for local/e2e testing.
+    Generates tests/fixtures/fixture.mp4 for local/manual testing.
 
 .DESCRIPTION
-    Creates a 5-second, 1280x720, 30fps synthetic video (testsrc2) with a sine-wave
-    audio track, encoded as H.264/AAC, using the ffmpeg binary from the sibling
-    video-compressor project. Idempotent: skips generation if the fixture already
-    exists, unless -Force is passed.
+    Thin wrapper around scripts/ffmpeg-fixture.mjs. Resolves FFmpeg via an explicit
+    -FfmpegPath, the FFMPEG_PATH environment variable, or PATH -- no machine-specific
+    path is hardcoded. Idempotent: skips generation if the fixture already exists,
+    unless -Force is passed.
+
+.PARAMETER FfmpegPath
+    Optional explicit path to an ffmpeg executable. Defaults to FFMPEG_PATH env var or PATH.
+
+.PARAMETER OutputPath
+    Optional output path for the generated fixture. Defaults to tests/fixtures/fixture.mp4.
 
 .PARAMETER Force
     Regenerate the fixture even if it already exists.
 #>
 param(
+    [string]$FfmpegPath,
+    [string]$OutputPath,
     [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
 
-$ffmpeg = 'C:\Users\Cyril\Projects\video-compressor\ffmpeg.exe'
+$scriptsDir = Join-Path $PSScriptRoot '..'
+$scriptsDir = Join-Path $scriptsDir 'scripts'
+$scriptPath = Join-Path $scriptsDir 'ffmpeg-fixture.mjs'
+
 $fixturesDir = Join-Path $PSScriptRoot 'fixtures'
-$fixturePath = Join-Path $fixturesDir 'fixture.mp4'
+$defaultOutput = Join-Path $fixturesDir 'fixture.mp4'
 
-if (-not (Test-Path $ffmpeg)) {
-    throw "ffmpeg.exe not found at $ffmpeg"
-}
+$resolvedOutput = $defaultOutput
+if ($OutputPath) { $resolvedOutput = $OutputPath }
 
-if ((Test-Path $fixturePath) -and -not $Force) {
-    Write-Host "Fixture already exists at $fixturePath (use -Force to regenerate). Skipping."
-    exit 0
-}
+$nodeArgs = @($scriptPath, '--output', $resolvedOutput)
+if ($FfmpegPath) { $nodeArgs += @('--ffmpeg-path', $FfmpegPath) }
+if ($Force) { $nodeArgs += '--force' }
 
-if (-not (Test-Path $fixturesDir)) {
-    New-Item -ItemType Directory -Path $fixturesDir | Out-Null
-}
-
-& $ffmpeg -y `
-    -f lavfi -i "testsrc2=size=1280x720:rate=30:duration=5" `
-    -f lavfi -i "sine=frequency=440:duration=5" `
-    -c:v libx264 -b:v 3000k `
-    -c:a aac `
-    -shortest `
-    $fixturePath
-
+node @nodeArgs
 if ($LASTEXITCODE -ne 0) {
-    throw "ffmpeg failed with exit code $LASTEXITCODE"
+    throw "ffmpeg-fixture.mjs failed with exit code $LASTEXITCODE"
 }
-
-Write-Host "Fixture written to $fixturePath"

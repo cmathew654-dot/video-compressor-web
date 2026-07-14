@@ -1,18 +1,34 @@
 import { test, expect, type Page, type Locator } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, statSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveFfmpeg, makeFixture } from '../scripts/ffmpeg-fixture.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, '..');
-const FIXTURE_PATH = join(__dirname, 'fixtures', 'fixture.mp4');
-const FFMPEG_PATH = 'C:\\Users\\Cyril\\Projects\\video-compressor\\ffmpeg.exe';
 const SCREENS_DIR = join(ROOT_DIR, 'test-results', 'screens');
 
+// Populated in beforeAll: a unique per-run temp directory holding the generated fixture,
+// and the FFmpeg executable resolved via FFMPEG_PATH env var or PATH (no machine-specific path).
+let fixtureDir: string;
+let fixturePath: string;
+let ffmpegPath: string;
+
+test.beforeAll(() => {
+  ffmpegPath = resolveFfmpeg({ env: process.env, pathValue: process.env.PATH });
+  fixtureDir = mkdtempSync(join(tmpdir(), 'vcw-e2e-fixture-'));
+  fixturePath = join(fixtureDir, 'fixture.mp4');
+  makeFixture({ ffmpegPath, outputPath: fixturePath });
+});
+
+test.afterAll(() => {
+  if (fixtureDir) rmSync(fixtureDir, { force: true, recursive: true });
+});
+
 function validateDecodable(filePath: string): { code: number | null; stderr: string } {
-  const result = spawnSync(FFMPEG_PATH, ['-v', 'error', '-i', filePath, '-f', 'null', '-'], {
+  const result = spawnSync(ffmpegPath, ['-v', 'error', '-i', filePath, '-f', 'null', '-'], {
     encoding: 'utf-8',
   });
   return { code: result.status, stderr: (result.stderr ?? '').trim() };
@@ -21,7 +37,7 @@ function validateDecodable(filePath: string): { code: number | null; stderr: str
 /** Uploads the fixture and waits for the row to reach the "ready" state. */
 async function uploadFixtureAndWaitReady(page: Page): Promise<Locator> {
   await page.goto('/');
-  await page.locator('#file-input').setInputFiles(FIXTURE_PATH);
+  await page.locator('#file-input').setInputFiles(fixturePath);
   const row = page.locator('tbody tr').first();
   await expect(row.locator('td').last()).toContainText('Ready', { timeout: 30_000 });
   return row;
@@ -33,7 +49,7 @@ test.describe('video compressor e2e', () => {
     page.on('console', (msg) => consoleLines.push(`[${msg.type()}] ${msg.text()}`));
     page.on('pageerror', (err) => consoleLines.push(`[pageerror] ${err.message}`));
 
-    const fixtureSize = statSync(FIXTURE_PATH).size;
+    const fixtureSize = statSync(fixturePath).size;
     const row = await uploadFixtureAndWaitReady(page);
 
     // "Est. out" is the 3rd column and must show a computed size, not the empty dash.
